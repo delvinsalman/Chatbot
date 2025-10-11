@@ -61,7 +61,7 @@ Highlights the capability to upload and analyze various file types (image, PDF, 
 
 <img width="1512" height="757" alt="Screenshot 2025-10-10 at 5 35 37 PM" src="https://github.com/user-attachments/assets/96500091-78d6-4fd5-a44f-4e8bf36f6507" />
 
-### 📂 **Text-Image Generation**
+### 🌅 **Text-Image Generation**
 Displays the capability of making us of AI models to generate images from text prompts. 
 
 <img width="1512" height="757" alt="Screenshot 2025-10-10 at 5 38 33 PM" src="https://github.com/user-attachments/assets/d7c97ed0-1b27-4580-aa99-9f48b394672d" />
