@@ -96,27 +96,45 @@
             <div class="ai-avatar">
               <img src="{{ url_for('static', filename='Icon.gif') }}" alt="AI Assistant">
             </div>
-            <h1>Hello! I'm a Chatbot.</h1>
+            <h1>How can I help you today?</h1>
             <p>Your intelligent assistant powered by Gemini 2.0 Flash</p>
             
             <div class="quick-prompts">
-              <h3>Try these examples:</h3>
               <div class="prompt-grid">
                 <button class="quick-prompt" data-prompt="Write a professional email requesting a meeting about the upcoming project deadline.">
                   <i class="fas fa-envelope"></i>
                   Professional Email
                 </button>
-                <button class="quick-prompt" data-prompt="Write a JavaScript function to check if a number is prime and explain how it works.">
-                  <i class="fas fa-code"></i>
-                  Prime Number Checker
-                </button>
                 <button class="quick-prompt" data-prompt="Explain how machine learning works in simple terms with practical examples.">
                   <i class="fas fa-brain"></i>
                   Machine Learning Basics
                 </button>
+                <button class="quick-prompt" data-prompt="/image a beautiful sunset over mountains with a lake reflection">
+                  <i class="fas fa-image"></i>
+                  Generate Sunset Image
+                </button>
+                <button class="quick-prompt" data-prompt="What are the latest trends in artificial intelligence?">
+                  <i class="fas fa-chart-line"></i>
+                  AI Trends
+                </button>
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Typing Indicator -->
+      <div class="typing-indicator" id="typing-indicator">
+        <div class="typing-avatar">
+          <img src="{{ url_for('static', filename='Icon.gif') }}" alt="AI Typing">
+        </div>
+        <div class="typing-content">
+          <div class="typing-dots">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+          </div>
+          <span>AI is thinking...</span>
         </div>
       </div>
 
@@ -138,7 +156,7 @@
             <div class="text-input-container">
               <textarea 
                 id="prompt" 
-                placeholder="Message Chatbot AI..." 
+                placeholder="Message AI Chatbot..." 
                 rows="1"
               ></textarea>
               <button class="send-btn" id="send-btn" title="Send message">
@@ -150,10 +168,7 @@
           <div class="input-footer">
             <div class="disclaimer">
               <i class="fas fa-info-circle"></i>
-              <span>Gemini may display inaccurate information. Please verify critical details.</span>
-            </div>
-            <div class="model-info-small">
-              <span>Powered by Gemini 2.0 Flash</span>
+              <span>AI may display inaccurate information. Please verify critical details.</span>
             </div>
           </div>
         </div>
@@ -218,21 +233,6 @@
           <button class="reset-btn" id="reset-settings">Reset</button>
         </div>
       </div>
-    </div>
-  </div>
-
-  <!-- Typing Indicator -->
-  <div class="typing-indicator" id="typing-indicator">
-    <div class="typing-avatar">
-      <img src="{{ url_for('static', filename='Icon.gif') }}" alt="AI Typing">
-    </div>
-    <div class="typing-content">
-      <div class="typing-dots">
-        <div class="dot"></div>
-        <div class="dot"></div>
-        <div class="dot"></div>
-      </div>
-      <span>Nexus AI is thinking...</span>
     </div>
   </div>
 

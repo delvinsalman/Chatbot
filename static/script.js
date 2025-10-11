@@ -143,6 +143,17 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if ((!message && attachedFiles.length === 0) || isProcessing) return;
     
+    // Check if this is an image generation request
+    if (message.startsWith('/image') || message.startsWith('/generate')) {
+      const imagePrompt = message.replace(/^\/image\s+|\/generate\s+/, '').trim();
+      if (imagePrompt) {
+        await generateImage(imagePrompt);
+        promptInput.value = '';
+        autoResizeTextarea();
+        return;
+      }
+    }
+    
     // Add user message
     addMessage(message, 'user', attachedFiles);
     promptInput.value = '';
@@ -166,10 +177,12 @@ document.addEventListener('DOMContentLoaded', function() {
             };
           } else {
             // For non-image files, we'll send the filename as reference
+            const textContent = await readFileAsText(file);
             return {
               type: file.type,
               data: null,
-              name: file.name
+              name: file.name,
+              content: textContent
             };
           }
         })
@@ -210,6 +223,133 @@ document.addEventListener('DOMContentLoaded', function() {
       sendButton.disabled = false;
       clearAttachments();
     }
+  }
+  
+  // Helper function to read file as text
+  function readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.onerror = error => reject(error);
+      reader.readAsText(file);
+    });
+  }
+  
+  async function generateImage(prompt) {
+    if (!prompt) {
+      showToast('Please provide a prompt for image generation');
+      return;
+    }
+    
+    // Add user message showing the generation request
+    addMessage(`Generate image: "${prompt}"`, 'user');
+    
+    // Show typing indicator for image generation
+    showTypingIndicator();
+    isProcessing = true;
+    sendButton.disabled = true;
+    
+    try {
+      const response = await fetch('/generate_image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: prompt
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        // Add image message
+        addImageMessage(data.image_base64, prompt, data.timestamp);
+        saveToHistory(`Generate image: "${prompt}"`, `![Generated Image](${data.image_base64})`);
+      } else if (data.status === 'loading') {
+        addMessage(`The image generation model is currently loading. Please try again in a few seconds.`, 'bot');
+      } else {
+        throw new Error(data.message || 'Image generation failed');
+      }
+      
+    } catch (error) {
+      console.error('Error generating image:', error);
+      addMessage(`Sorry, I couldn't generate the image: ${error.message}`, 'bot');
+    } finally {
+      hideTypingIndicator();
+      isProcessing = false;
+      sendButton.disabled = false;
+    }
+  }
+  
+  function addImageMessage(imageData, prompt, timestamp) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message bot-message';
+    
+    const displayTime = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const messageId = generateId();
+    messageDiv.dataset.messageId = messageId;
+    
+    messageDiv.innerHTML = `
+      <div class="message-avatar">
+        <img src="/static/Icon.gif" alt="AI Assistant">
+      </div>
+      <div class="message-content">
+        <div class="message-bubble">
+          <div class="generated-image-container">
+            <h4>Generated Image</h4>
+            <p><strong>Prompt:</strong> "${prompt}"</p>
+            <div class="image-result">
+              <img src="${imageData}" alt="Generated image: ${prompt}" class="generated-image" onclick="showImageModal('${imageData}')">
+            </div>
+            <div class="image-actions">
+              <button class="image-action download-btn" data-image="${imageData}" data-filename="generated_image_${Date.now()}.png">
+                <i class="fas fa-download"></i> Download
+              </button>
+              <button class="image-action regenerate-image-btn" data-prompt="${prompt.replace(/"/g, '&quot;')}">
+                <i class="fas fa-redo"></i> Regenerate
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="message-meta">
+          <span class="message-time">${displayTime}</span>
+          <div class="message-actions">
+            <button class="message-action copy-btn" title="Copy prompt">
+              <i class="fas fa-copy"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Remove welcome screen if it exists
+    const welcomeScreen = document.querySelector('.welcome-screen');
+    if (welcomeScreen) {
+      welcomeScreen.remove();
+    }
+    
+    chatContainer.appendChild(messageDiv);
+    scrollToBottom();
+    
+    // Add event listeners
+    const downloadBtn = messageDiv.querySelector('.download-btn');
+    const regenerateBtn = messageDiv.querySelector('.regenerate-image-btn');
+    const copyBtn = messageDiv.querySelector('.copy-btn');
+    
+    downloadBtn.addEventListener('click', () => downloadImage(imageData, downloadBtn.dataset.filename));
+    regenerateBtn.addEventListener('click', () => generateImage(prompt));
+    copyBtn.addEventListener('click', () => copyToClipboard(prompt));
+  }
+  
+  function downloadImage(imageData, filename) {
+    const link = document.createElement('a');
+    link.href = imageData;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Image downloaded successfully!');
   }
   
   function fileToBase64(file) {
@@ -377,59 +517,63 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 100);
   }
   
-function startNewChat() {
-  if (isProcessing) return;
-  
-  currentConversationId = generateId();
-  currentSettings.conversationName = 'New Conversation';
-  conversationTitle.textContent = currentSettings.conversationName;
-  conversationName.value = '';
-  
-  // Clear chat container and show welcome screen
-  chatContainer.innerHTML = `
-    <div class="welcome-screen">
-      <div class="welcome-content">
-        <div class="ai-avatar">
-          <img src="/static/Icon.gif" alt="AI Assistant">
-        </div>
-        <h1>Hello! I'm a Chatbot.</h1>
-        <p>Your intelligent assistant powered by Gemini 2.0 Flash</p>
-        
-        <div class="quick-prompts">
-          <h3>Try these examples:</h3>
-          <div class="prompt-grid">
-            <button class="quick-prompt" data-prompt="Write a professional email requesting a meeting about the upcoming project deadline.">
-              <i class="fas fa-envelope"></i>
-              Professional Email
-            </button>
-            <button class="quick-prompt" data-prompt="Write a JavaScript function to check if a number is prime and explain how it works.">
-              <i class="fas fa-code"></i>
-              Prime Number Checker
-            </button>
-            <button class="quick-prompt" data-prompt="Explain how machine learning works in simple terms with practical examples.">
-              <i class="fas fa-brain"></i>
-              Machine Learning Basics
-            </button>
+  function startNewChat() {
+    if (isProcessing) return;
+    
+    currentConversationId = generateId();
+    currentSettings.conversationName = 'New Conversation';
+    conversationTitle.textContent = currentSettings.conversationName;
+    conversationName.value = '';
+    
+    // Clear chat container and show welcome screen
+    chatContainer.innerHTML = `
+      <div class="welcome-screen">
+        <div class="welcome-content">
+          <div class="ai-avatar">
+            <img src="/static/Icon.gif" alt="AI Assistant">
+          </div>
+          <h1>Hello! How can I help you today?</h1>
+          <p>Your intelligent assistant powered by Gemini 2.0 Flash</p>
+          
+          <div class="quick-prompts">
+            <div class="prompt-grid">
+              <button class="quick-prompt" data-prompt="Write a professional email requesting a meeting about the upcoming project deadline.">
+                <i class="fas fa-envelope"></i>
+                Professional Email
+              </button>
+              <button class="quick-prompt" data-prompt="Explain how machine learning works in simple terms with practical examples.">
+                <i class="fas fa-brain"></i>
+                Machine Learning Basics
+              </button>
+              <button class="quick-prompt" data-prompt="/image a beautiful sunset over mountains with a lake reflection">
+                <i class="fas fa-image"></i>
+                Generate Sunset Image
+              </button>
+              <button class="quick-prompt" data-prompt="What are the latest trends in artificial intelligence?">
+                <i class="fas fa-chart-line"></i>
+                AI Trends
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  `;
-  
-  // Reattach event listeners to quick prompts
-  document.querySelectorAll('.quick-prompt').forEach(prompt => {
-    prompt.addEventListener('click', () => {
-      const promptText = prompt.getAttribute('data-prompt');
-      promptInput.value = promptText;
-      promptInput.focus();
-      autoResizeTextarea();
+    `;
+    
+    // Reattach event listeners to quick prompts
+    document.querySelectorAll('.quick-prompt').forEach(prompt => {
+      prompt.addEventListener('click', () => {
+        const promptText = prompt.getAttribute('data-prompt');
+        promptInput.value = promptText;
+        promptInput.focus();
+        autoResizeTextarea();
+      });
     });
-  });
+    
+    clearAttachments();
+    closeAllPanels();
+    saveSettings();
+  }
   
-  clearAttachments();
-  closeAllPanels();
-  saveSettings();
-}
   function toggleSidebar() {
     sidebar.classList.toggle('active');
     overlay.classList.toggle('active');
@@ -574,7 +718,7 @@ function startNewChat() {
     currentSettings.systemPrompt = systemPromptInput.value;
     
     localStorage.setItem('chatSettings', JSON.stringify(currentSettings));
-    showToast('Settings saved!');
+    showToast('Settings saved successfully!');
     closeSettingsPanel();
   }
   
@@ -633,77 +777,113 @@ function startNewChat() {
     // Update title if it's the first message
     if (conversation.messages.length === 1) {
       conversation.title = userMessage.substring(0, 50) + (userMessage.length > 50 ? '...' : '');
-      currentSettings.conversationName = conversation.title;
-      conversationTitle.textContent = conversation.title;
-      conversationName.value = conversation.title;
-    }
-    
-    // Keep only last 20 conversations
-    if (history.length > 20) {
-      history.pop();
     }
     
     localStorage.setItem('chatHistory', JSON.stringify(history));
-    renderHistoryList();
-    saveSettings();
+    loadConversationHistory();
   }
   
-  function renderHistoryList() {
+  function loadConversationHistory() {
     const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-    
     historyList.innerHTML = '';
     
     if (history.length === 0) {
-      historyList.innerHTML = '<div class="empty-history">No conversations yet</div>';
+      historyList.innerHTML = `
+        <div class="empty-history">
+          <i class="fas fa-comments"></i>
+          <div>No conversations yet</div>
+          <div style="font-size: 11px; margin-top: 8px; opacity: 0.7;">Start a new chat to see history here</div>
+        </div>
+      `;
       return;
     }
     
     history.forEach(conversation => {
       const item = document.createElement('div');
       item.className = 'history-item';
+      if (conversation.id === currentConversationId) {
+        item.classList.add('active');
+      }
+      
       item.innerHTML = `
-        <h4>${conversation.title}</h4>
-        <p>${new Date(conversation.timestamp).toLocaleDateString()}</p>
+        <div class="history-content">
+          <div class="history-title">${conversation.title}</div>
+          <div class="history-time">${new Date(conversation.timestamp).toLocaleDateString()}</div>
+        </div>
+        <button class="delete-history" data-id="${conversation.id}">
+          <i class="fas fa-trash"></i>
+        </button>
       `;
       
-      item.addEventListener('click', () => loadConversation(conversation.id));
+      item.addEventListener('click', (e) => {
+        if (!e.target.closest('.delete-history')) {
+          loadConversation(conversation.id);
+        }
+      });
+      
+      const deleteBtn = item.querySelector('.delete-history');
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteConversation(conversation.id);
+      });
       
       historyList.appendChild(item);
     });
-  }
-  
-  function loadConversationHistory() {
-    renderHistoryList();
   }
   
   function loadConversation(conversationId) {
     const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
     const conversation = history.find(conv => conv.id === conversationId);
     
-    if (!conversation) return;
+    if (conversation) {
+      currentConversationId = conversationId;
+      currentSettings.conversationName = conversation.title;
+      conversationTitle.textContent = conversation.title;
+      conversationName.value = conversation.title;
+      
+      // Clear and rebuild chat
+      chatContainer.innerHTML = '';
+      
+      conversation.messages.forEach(msg => {
+        if (msg.user.startsWith('Generate image:')) {
+          // Handle image messages
+          const prompt = msg.user.replace('Generate image: "', '').replace('"', '');
+          const imageMatch = msg.bot.match(/!\[Generated Image\]\((.*?)\)/);
+          if (imageMatch && imageMatch[1]) {
+            addImageMessage(imageMatch[1], prompt, new Date().toISOString());
+          }
+        } else {
+          addMessage(msg.user, 'user');
+          addMessage(msg.bot, 'bot');
+        }
+      });
+      
+      closeAllPanels();
+      loadConversationHistory();
+      saveSettings();
+    }
+  }
+  
+  function deleteConversation(conversationId) {
+    let history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+    history = history.filter(conv => conv.id !== conversationId);
     
-    currentConversationId = conversationId;
-    currentSettings.conversationName = conversation.title;
-    conversationTitle.textContent = conversation.title;
-    conversationName.value = conversation.title;
+    localStorage.setItem('chatHistory', JSON.stringify(history));
     
-    // Clear chat and add messages
-    chatContainer.innerHTML = '';
+    if (conversationId === currentConversationId) {
+      startNewChat();
+    }
     
-    conversation.messages.forEach(msg => {
-      addMessage(msg.user, 'user');
-      addMessage(msg.bot, 'bot');
-    });
-    
-    closeAllPanels();
-    saveSettings();
+    loadConversationHistory();
+    showToast('Conversation deleted');
   }
   
   function clearAllHistory() {
     if (confirm('Are you sure you want to clear all conversation history?')) {
       localStorage.removeItem('chatHistory');
-      renderHistoryList();
-      showToast('History cleared!');
+      startNewChat();
+      loadConversationHistory();
+      showToast('All history cleared!');
     }
   }
   
@@ -712,8 +892,12 @@ function startNewChat() {
     const items = historyList.querySelectorAll('.history-item');
     
     items.forEach(item => {
-      const text = item.textContent.toLowerCase();
-      item.style.display = text.includes(searchTerm) ? 'flex' : 'none';
+      const title = item.querySelector('.history-title').textContent.toLowerCase();
+      if (title.includes(searchTerm)) {
+        item.style.display = 'flex';
+      } else {
+        item.style.display = 'none';
+      }
     });
   }
   
@@ -727,12 +911,13 @@ function startNewChat() {
     const toast = document.createElement('div');
     toast.className = 'toast';
     toast.textContent = message;
+    
     document.body.appendChild(toast);
     
-    setTimeout(() => {
-      toast.classList.add('show');
-    }, 10);
+    // Show toast with animation
+    setTimeout(() => toast.classList.add('show'), 100);
     
+    // Hide toast after 3 seconds
     setTimeout(() => {
       toast.classList.remove('show');
       setTimeout(() => {
@@ -743,41 +928,43 @@ function startNewChat() {
     }, 3000);
   }
   
-  function showImageModal(src) {
-    const modal = document.createElement('div');
-    modal.className = 'image-modal active';
-    modal.innerHTML = `
-      <button class="image-modal-close"><i class="fas fa-times"></i></button>
-      <div class="image-modal-content">
-        <img src="${src}" alt="Preview">
-      </div>
-    `;
-    
-    modal.querySelector('.image-modal-close').addEventListener('click', () => {
-      modal.classList.remove('active');
-      setTimeout(() => {
-        if (modal.parentNode) {
-          modal.remove();
-        }
-      }, 300);
-    });
-    
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) {
-        modal.querySelector('.image-modal-close').click();
-      }
-    });
-    
-    document.body.appendChild(modal);
-  }
-  
   function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
   }
+});
+
+// Global functions for image handling
+function showImageModal(imageUrl) {
+  const modal = document.createElement('div');
+  modal.className = 'image-modal';
+  modal.innerHTML = `
+    <div class="modal-content">
+      <span class="close-modal">&times;</span>
+      <img src="${imageUrl}" alt="Full size image">
+    </div>
+  `;
   
-  // Make showImageModal available globally for inline handlers
-  window.showImageModal = showImageModal;
+  document.body.appendChild(modal);
   
-  // Initialize temperature display
-  updateTemperatureValue();
+  modal.querySelector('.close-modal').addEventListener('click', () => {
+    modal.remove();
+  });
+  
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.remove();
+    }
+  });
+}
+
+// Handle fullscreen change
+document.addEventListener('fullscreenchange', function() {
+  const fullscreenToggle = document.getElementById('fullscreen-toggle');
+  const icon = fullscreenToggle.querySelector('i');
+  
+  if (document.fullscreenElement) {
+    icon.className = 'fas fa-compress';
+  } else {
+    icon.className = 'fas fa-expand';
+  }
 });
