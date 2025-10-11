@@ -10,17 +10,20 @@ import json
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
+# Configuration
 UPLOAD_FOLDER = 'static/uploads'
 GENERATED_IMAGES_FOLDER = 'static/generated_images'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'txt', 'docx'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['GENERATED_IMAGES_FOLDER'] = GENERATED_IMAGES_FOLDER
 
+# API configuration
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 GEMINI_API_KEY = "YOUR API KEY"
 
+# Hugging Face API for image generation - Using Stable Diffusion XL (should work)
 HUGGING_FACE_API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
-HUGGING_FACE_API_KEY = "YOUR API KEY"
+HUGGING_FACE_API_KEY = "OUR API KEY"
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -41,6 +44,7 @@ def send_message():
         system_prompt = data.get('system_prompt', '')
         temperature = float(data.get('temperature', 0.7))
         
+        # Check for quick answer commands
         if user_message.startswith('/quick ') or user_message.startswith('/q '):
             prompt = user_message.replace('/quick ', '').replace('/q ', '')
             return generate_quick_answer(prompt)
@@ -54,6 +58,7 @@ def send_message():
             prompt = user_message.replace('/define ', '').replace('/whatis ', '')
             return generate_definition(prompt)
         
+        # Create conversation payload
         payload = {
             "contents": [{
                 "parts": []
@@ -65,16 +70,20 @@ def send_message():
             }
         }
         
+        # Add system instruction if provided
         if system_prompt:
             payload["systemInstruction"] = {
                 "parts": [{"text": system_prompt}]
             }
         
+        # Add user message
         if user_message:
             payload["contents"][0]["parts"].append({"text": user_message})
         
+        # Add files if any
         for file_data in files:
             if file_data.get('type', '').startswith('image/'):
+                # For image files, include as inline data
                 payload["contents"][0]["parts"].append({
                     "inline_data": {
                         "mime_type": file_data.get("type"),
@@ -82,10 +91,12 @@ def send_message():
                     }
                 })
             else:
+                # For non-image files, include as text reference
                 payload["contents"][0]["parts"].append({
                     "text": f"[Attached file: {file_data.get('name', 'file')}]"
                 })
         
+        # Make API request
         headers = {
             "Content-Type": "application/json",
             "X-goog-api-key": GEMINI_API_KEY
@@ -95,8 +106,10 @@ def send_message():
         response = requests.post(GEMINI_API_URL, json=payload, headers=headers, timeout=60)
         response.raise_for_status()
         
+        # Process response
         response_data = response.json()
         
+        # Extract the response text safely
         if 'candidates' in response_data and len(response_data['candidates']) > 0:
             candidate = response_data['candidates'][0]
             if 'content' in candidate and 'parts' in candidate['content'] and len(candidate['content']['parts']) > 0:
@@ -106,6 +119,7 @@ def send_message():
         else:
             ai_response = "No candidates in response"
         
+        # Format response with markdown support
         formatted_response = format_response(ai_response)
         
         return jsonify({
@@ -137,6 +151,7 @@ def send_message():
         }), 500
 
 def generate_quick_answer(prompt):
+    """Generate a quick, concise answer"""
     quick_system_prompt = "Provide a very concise and direct answer. Maximum 2-3 sentences. Get straight to the point without introductions or conclusions."
     
     payload = {
@@ -172,6 +187,7 @@ def generate_quick_answer(prompt):
     })
 
 def generate_summary(prompt):
+    """Generate a summary"""
     summary_system_prompt = "Provide a concise summary of the given text. Focus on key points and main ideas. Keep it brief and to the point."
     
     payload = {
@@ -207,6 +223,7 @@ def generate_summary(prompt):
     })
 
 def generate_bullet_points(prompt):
+    """Generate bullet points"""
     bullet_system_prompt = "Provide the information as clear, concise bullet points. Use • for bullets. Maximum 5-6 points. No long explanations."
     
     payload = {
@@ -242,6 +259,7 @@ def generate_bullet_points(prompt):
     })
 
 def generate_definition(prompt):
+    """Generate a definition"""
     definition_system_prompt = "Provide a clear, concise definition. Explain what it is in simple terms. Include key characteristics if relevant."
     
     payload = {
@@ -278,6 +296,7 @@ def generate_definition(prompt):
 
 @app.route('/generate_image', methods=['POST'])
 def generate_image():
+    """Generate image using Hugging Face Stable Diffusion API"""
     try:
         data = request.json
         prompt = data.get('prompt', '')
@@ -288,11 +307,13 @@ def generate_image():
                 'message': 'No prompt provided'
             }), 400
         
+        # Prepare headers for Hugging Face API
         headers = {
             "Authorization": f"Bearer {HUGGING_FACE_API_KEY}",
             "Content-Type": "application/json"
         }
         
+        # Prepare payload for image generation
         payload = {
             "inputs": prompt,
             "parameters": {
@@ -309,14 +330,16 @@ def generate_image():
         
         print(f"Generating image with prompt: {prompt}")
         
+        # Make API request to Hugging Face
         response = requests.post(
             HUGGING_FACE_API_URL,
             headers=headers,
             json=payload,
-            timeout=120
+            timeout=120  # Longer timeout for image generation
         )
         
         if response.status_code == 503:
+            # Model is loading, provide feedback
             return jsonify({
                 'status': 'loading',
                 'message': 'Model is loading, please try again in a few seconds...'
@@ -324,6 +347,7 @@ def generate_image():
             
         response.raise_for_status()
         
+        # Save the generated image
         if not os.path.exists(app.config['GENERATED_IMAGES_FOLDER']):
             os.makedirs(app.config['GENERATED_IMAGES_FOLDER'])
         
@@ -333,6 +357,7 @@ def generate_image():
         with open(image_path, 'wb') as f:
             f.write(response.content)
         
+        # Convert image to base64 for immediate display
         image_base64 = base64.b64encode(response.content).decode('utf-8')
         
         return jsonify({
@@ -354,6 +379,7 @@ def generate_image():
         
         print(f"Image Generation Error: {error_msg}")
         
+        # If the model still doesn't work, provide alternative
         if "404" in error_msg or "not found" in error_msg.lower():
             return jsonify({
                 'status': 'error',
@@ -379,10 +405,13 @@ def update_conversation_name():
     return jsonify({'status': 'success'})
 
 def format_response(text):
+    """Format the AI response with markdown support"""
+    # Convert markdown to HTML
     formatted = text.replace('**', '<strong>').replace('**', '</strong>')
     formatted = formatted.replace('*', '<em>').replace('*', '</em>')
     formatted = formatted.replace('`', '<code>').replace('`', '</code>')
     
+    # Handle paragraphs and lists
     paragraphs = formatted.split('\n\n')
     formatted = '<p>' + '</p><p>'.join(paragraphs) + '</p>'
     
@@ -393,6 +422,7 @@ def format_response(text):
 
 @app.route('/upload_file', methods=['POST'])
 def upload_file():
+    """Handle file uploads separately if needed"""
     try:
         if 'file' not in request.files:
             return jsonify({'status': 'error', 'message': 'No file provided'}), 400
@@ -406,6 +436,7 @@ def upload_file():
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(file_path)
             
+            # Return file info
             return jsonify({
                 'status': 'success',
                 'filename': filename,

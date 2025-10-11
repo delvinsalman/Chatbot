@@ -5,6 +5,7 @@
 }
 
 :root {
+  /* Dark theme (default) */
   --primary-bg: #0f0f0f;
   --secondary-bg: #1a1a1a;
   --tertiary-bg: #2a2a2a;
@@ -60,6 +61,7 @@ body {
   position: relative;
 }
 
+/* Sidebar */
 .sidebar {
   width: 260px;
   background-color: var(--sidebar-bg);
@@ -324,6 +326,7 @@ body {
   color: var(--text-secondary);
 }
 
+/* Main Content */
 .main-content {
   flex: 1;
   display: flex;
@@ -331,6 +334,7 @@ body {
   background-color: var(--primary-bg);
 }
 
+/* Header */
 .chat-header {
   display: flex;
   justify-content: space-between;
@@ -410,6 +414,7 @@ body {
   color: var(--text-primary);
 }
 
+/* Chat Container */
 .chat-container {
   flex: 1;
   overflow-y: auto;
@@ -494,6 +499,7 @@ body {
   border-color: var(--accent-color);
 }
 
+/* Messages */
 .message {
   display: flex;
   gap: 16px;
@@ -602,6 +608,7 @@ body {
   color: var(--text-secondary);
 }
 
+/* Message Files */
 .message-files {
   display: flex;
   flex-wrap: wrap;
@@ -645,6 +652,7 @@ body {
   color: var(--text-tertiary);
 }
 
+/* Input Section */
 .input-section {
   padding: 0;
   border-top: 1px solid var(--border-color);
@@ -812,6 +820,7 @@ body {
   font-size: 12px;
 }
 
+/* Settings Panel */
 .settings-panel {
   position: fixed;
   top: 0;
@@ -1033,6 +1042,7 @@ body {
   background-color: var(--secondary-bg);
 }
 
+/* Typing Indicator */
 .typing-indicator {
   display: none;
   align-items: center;
@@ -1096,6 +1106,7 @@ body {
   40% { transform: scale(1); opacity: 1; }
 }
 
+/* Overlay */
 .overlay {
   position: fixed;
   top: 0;
@@ -1111,6 +1122,7 @@ body {
   display: block;
 }
 
+/* Toast Notifications - FIXED POSITION */
 .toast {
   position: fixed;
   top: 20px;
@@ -1133,6 +1145,7 @@ body {
   transform: translateX(0);
 }
 
+/* Image Generation Styles - FIXED BUTTONS */
 .generated-image-container {
   margin: 10px 0;
   padding: 15px;
@@ -1201,6 +1214,7 @@ body {
   transform: translateY(-1px);
 }
 
+/* Image Modal */
 .image-modal {
   position: fixed;
   top: 0;
@@ -1249,6 +1263,7 @@ body {
   background-color: rgba(255, 255, 255, 0.1);
 }
 
+/* Code Blocks */
 pre {
   background-color: var(--tertiary-bg) !important;
   border-radius: 8px;
@@ -1267,6 +1282,7 @@ code {
   background: transparent !important;
 }
 
+/* Responsive */
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
@@ -1323,6 +1339,7 @@ code {
   }
 }
 
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -1340,6 +1357,7 @@ code {
   background: var(--text-secondary);
 }
 
+/* Markdown Styling */
 .message-content p {
   margin-bottom: 8px;
 }
