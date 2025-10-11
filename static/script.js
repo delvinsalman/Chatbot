@@ -266,15 +266,21 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add image message
         addImageMessage(data.image_base64, prompt, data.timestamp);
         saveToHistory(`Generate image: "${prompt}"`, `![Generated Image](${data.image_base64})`);
+        showToast('Image generated successfully!');
       } else if (data.status === 'loading') {
-        addMessage(`The image generation model is currently loading. Please try again in a few seconds.`, 'bot');
+        addMessage(`The image generation model is currently loading. This usually takes 20-30 seconds. Please try again in a moment.`, 'bot');
+        showToast('Model is loading, please wait...');
       } else {
         throw new Error(data.message || 'Image generation failed');
       }
       
     } catch (error) {
       console.error('Error generating image:', error);
-      addMessage(`Sorry, I couldn't generate the image: ${error.message}`, 'bot');
+      const errorMessage = error.message.includes('unavailable') 
+        ? error.message 
+        : `Sorry, I couldn't generate the image: ${error.message}. Please try a different prompt or try again later.`;
+      addMessage(errorMessage, 'bot');
+      showToast('Image generation failed');
     } finally {
       hideTypingIndicator();
       isProcessing = false;
@@ -297,7 +303,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="message-content">
         <div class="message-bubble">
           <div class="generated-image-container">
-            <h4>Generated Image</h4>
+            <h4>🎨 Generated Image</h4>
             <p><strong>Prompt:</strong> "${prompt}"</p>
             <div class="image-result">
               <img src="${imageData}" alt="Generated image: ${prompt}" class="generated-image" onclick="showImageModal('${imageData}')">
@@ -308,6 +314,9 @@ document.addEventListener('DOMContentLoaded', function() {
               </button>
               <button class="image-action regenerate-image-btn" data-prompt="${prompt.replace(/"/g, '&quot;')}">
                 <i class="fas fa-redo"></i> Regenerate
+              </button>
+              <button class="image-action enhance-prompt-btn" data-prompt="${prompt.replace(/"/g, '&quot;')}">
+                <i class="fas fa-magic"></i> Enhance & Retry
               </button>
             </div>
           </div>
@@ -335,11 +344,47 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add event listeners
     const downloadBtn = messageDiv.querySelector('.download-btn');
     const regenerateBtn = messageDiv.querySelector('.regenerate-image-btn');
+    const enhanceBtn = messageDiv.querySelector('.enhance-prompt-btn');
     const copyBtn = messageDiv.querySelector('.copy-btn');
     
     downloadBtn.addEventListener('click', () => downloadImage(imageData, downloadBtn.dataset.filename));
     regenerateBtn.addEventListener('click', () => generateImage(prompt));
+    enhanceBtn.addEventListener('click', () => enhanceAndRegenerate(prompt));
     copyBtn.addEventListener('click', () => copyToClipboard(prompt));
+  }
+  
+  async function enhanceAndRegenerate(originalPrompt) {
+    // Use AI to enhance the prompt for better image generation
+    showToast('Enhancing prompt for better results...');
+    
+    try {
+      const response = await fetch('/send_message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: `Improve this image generation prompt for better results, make it more descriptive and detailed but keep the core idea: "${originalPrompt}". Return only the improved prompt without any explanations.`,
+          system_prompt: "You are a prompt engineering expert. Improve image generation prompts by making them more descriptive, detailed, and specific while maintaining the original intent. Return only the improved prompt without any additional text.",
+          temperature: 0.7
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        const enhancedPrompt = data.response.replace(/<[^>]*>/g, '').trim();
+        promptInput.value = `/image ${enhancedPrompt}`;
+        autoResizeTextarea();
+        generateImage(enhancedPrompt);
+      } else {
+        throw new Error('Failed to enhance prompt');
+      }
+    } catch (error) {
+      console.error('Error enhancing prompt:', error);
+      // If enhancement fails, just regenerate with original prompt
+      generateImage(originalPrompt);
+    }
   }
   
   function downloadImage(imageData, filename) {
@@ -545,13 +590,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 <i class="fas fa-brain"></i>
                 Machine Learning Basics
               </button>
-              <button class="quick-prompt" data-prompt="/image a beautiful sunset over mountains with a lake reflection">
-                <i class="fas fa-image"></i>
-                Generate Sunset Image
+              <button class="quick-prompt" data-prompt="/image a majestic dragon flying over a medieval castle at sunset, fantasy art, highly detailed, digital painting">
+                <i class="fas fa-dragon"></i>
+                Generate Fantasy Art
               </button>
-              <button class="quick-prompt" data-prompt="What are the latest trends in artificial intelligence?">
-                <i class="fas fa-chart-line"></i>
-                AI Trends
+              <button class="quick-prompt" data-prompt="/image a serene mountain landscape with crystal clear lake, photorealistic, 4k, professional photography">
+                <i class="fas fa-mountain"></i>
+                Generate Landscape
               </button>
             </div>
           </div>

@@ -6,6 +6,7 @@ import uuid
 import base64
 from werkzeug.utils import secure_filename
 import json
+import time
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -21,9 +22,15 @@ app.config['GENERATED_IMAGES_FOLDER'] = GENERATED_IMAGES_FOLDER
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 GEMINI_API_KEY = "YOUR API KEY"
 
-# Hugging Face API for image generation - Using Stable Diffusion XL (should work)
-HUGGING_FACE_API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+# Updated Hugging Face API for better image generation - Using Stable Diffusion 2.1
+HUGGING_FACE_API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1"
 HUGGING_FACE_API_KEY = "YOUR API KEY"
+
+# Alternative models (fallback options)
+ALTERNATIVE_MODELS = [
+    "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5",
+    "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+]
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -296,7 +303,7 @@ def generate_definition(prompt):
 
 @app.route('/generate_image', methods=['POST'])
 def generate_image():
-    """Generate image using Hugging Face Stable Diffusion API"""
+    """Generate image using Hugging Face Stable Diffusion 2.1 API with fallback"""
     try:
         data = request.json
         prompt = data.get('prompt', '')
@@ -307,20 +314,23 @@ def generate_image():
                 'message': 'No prompt provided'
             }), 400
         
-        # Prepare headers for Hugging Face API
+        # Enhanced prompt for better results
+        enhanced_prompt = f"high quality, detailed, professional, 4k, {prompt}"
+        
         headers = {
             "Authorization": f"Bearer {HUGGING_FACE_API_KEY}",
             "Content-Type": "application/json"
         }
         
-        # Prepare payload for image generation
+        # Improved payload for better image quality
         payload = {
-            "inputs": prompt,
+            "inputs": enhanced_prompt,
             "parameters": {
-                "num_inference_steps": 20,
+                "num_inference_steps": 30,  # Increased for better quality
                 "guidance_scale": 7.5,
                 "width": 512,
-                "height": 512
+                "height": 512,
+                "negative_prompt": "blurry, low quality, distorted, ugly, bad anatomy, worst quality"
             },
             "options": {
                 "wait_for_model": True,
@@ -328,22 +338,46 @@ def generate_image():
             }
         }
         
-        print(f"Generating image with prompt: {prompt}")
+        print(f"Generating image with prompt: {enhanced_prompt}")
         
-        # Make API request to Hugging Face
+        # Try primary model first
+        response = try_image_generation(HUGGING_FACE_API_URL, headers, payload)
+        
+        if response['status'] == 'success':
+            return response['data']
+        else:
+            # Try alternative models if primary fails
+            for model_url in ALTERNATIVE_MODELS:
+                print(f"Trying alternative model: {model_url}")
+                response = try_image_generation(model_url, headers, payload)
+                if response['status'] == 'success':
+                    return response['data']
+            
+            # If all models fail
+            return jsonify({
+                'status': 'error',
+                'message': 'All image generation services are currently unavailable. Please try again later.'
+            }), 503
+            
+    except Exception as e:
+        print(f"Unexpected error in image generation: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f"Unexpected error: {str(e)}"
+        }), 500
+
+def try_image_generation(api_url, headers, payload):
+    """Try to generate image with a specific model"""
+    try:
         response = requests.post(
-            HUGGING_FACE_API_URL,
+            api_url,
             headers=headers,
             json=payload,
-            timeout=120  # Longer timeout for image generation
+            timeout=120
         )
         
         if response.status_code == 503:
-            # Model is loading, provide feedback
-            return jsonify({
-                'status': 'loading',
-                'message': 'Model is loading, please try again in a few seconds...'
-            }), 503
+            return {'status': 'loading', 'message': 'Model is loading...'}
             
         response.raise_for_status()
         
@@ -360,13 +394,16 @@ def generate_image():
         # Convert image to base64 for immediate display
         image_base64 = base64.b64encode(response.content).decode('utf-8')
         
-        return jsonify({
+        return {
             'status': 'success',
-            'image_url': f"/{image_path}",
-            'image_base64': f"data:image/png;base64,{image_base64}",
-            'prompt': prompt,
-            'timestamp': datetime.now().isoformat()
-        })
+            'data': jsonify({
+                'status': 'success',
+                'image_url': f"/{image_path}",
+                'image_base64': f"data:image/png;base64,{image_base64}",
+                'prompt': payload['inputs'].replace('high quality, detailed, professional, 4k, ', ''),
+                'timestamp': datetime.now().isoformat()
+            }).get_json()
+        }
         
     except requests.exceptions.RequestException as e:
         error_msg = str(e)
@@ -377,26 +414,12 @@ def generate_image():
             except:
                 pass
         
-        print(f"Image Generation Error: {error_msg}")
-        
-        # If the model still doesn't work, provide alternative
-        if "404" in error_msg or "not found" in error_msg.lower():
-            return jsonify({
-                'status': 'error',
-                'message': 'Image generation service is temporarily unavailable. Please try again later or use a different prompt.'
-            }), 404
-            
-        return jsonify({
-            'status': 'error',
-            'message': f"Image generation failed: {error_msg}"
-        }), 500
+        print(f"Image Generation Error for {api_url}: {error_msg}")
+        return {'status': 'error', 'message': error_msg}
         
     except Exception as e:
-        print(f"Unexpected error in image generation: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'message': f"Unexpected error: {str(e)}"
-        }), 500
+        print(f"Unexpected error: {str(e)}")
+        return {'status': 'error', 'message': str(e)}
 
 @app.route('/update_conversation_name', methods=['POST'])
 def update_conversation_name():
