@@ -19,7 +19,7 @@ app.config['GENERATED_IMAGES_FOLDER'] = GENERATED_IMAGES_FOLDER
 
 # API configuration
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-GEMINI_API_KEY = "AIzaSyD923quGIGar90Td3A9qqsl6sQMuHkw6ys"
+GEMINI_API_KEY = "YOUR API KEY"
 
 # Hugging Face API for image generation - Using Stable Diffusion XL (should work)
 HUGGING_FACE_API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
