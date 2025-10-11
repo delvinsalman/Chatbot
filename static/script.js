@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', function() {
-  // DOM Elements
   const chatContainer = document.getElementById('chat-container');
   const promptInput = document.getElementById('prompt');
   const sendButton = document.getElementById('send-btn');
@@ -28,7 +27,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const searchInput = document.getElementById('search-input');
   const historyList = document.getElementById('history-list');
   
-  // State
   let currentConversationId = generateId();
   let isProcessing = false;
   let attachedFiles = [];
@@ -39,7 +37,6 @@ document.addEventListener('DOMContentLoaded', function() {
     conversationName: 'New Conversation'
   };
 
-  // Initialize
   initializeApp();
   
   function initializeApp() {
@@ -51,16 +48,13 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   function setupEventListeners() {
-    // Send message
     sendButton.addEventListener('click', sendMessage);
     promptInput.addEventListener('keydown', handleKeyDown);
     
-    // UI interactions
     newChatBtn.addEventListener('click', startNewChat);
     menuBtn.addEventListener('click', toggleSidebar);
     overlay.addEventListener('click', closeAllPanels);
     
-    // Theme and settings
     themeToggle.addEventListener('click', toggleTheme);
     fullscreenToggle.addEventListener('click', toggleFullscreen);
     settingsBtns.forEach(btn => btn.addEventListener('click', openSettings));
@@ -68,7 +62,6 @@ document.addEventListener('DOMContentLoaded', function() {
     saveSettingsBtn.addEventListener('click', saveSettings);
     resetSettingsBtn.addEventListener('click', resetSettings);
     
-    // Quick prompts
     quickPrompts.forEach(prompt => {
       prompt.addEventListener('click', () => {
         const promptText = prompt.getAttribute('data-prompt');
@@ -78,29 +71,23 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
     
-    // File handling
     attachBtn.addEventListener('click', () => fileUpload.click());
     fileUpload.addEventListener('change', handleFileUpload);
     
-    // Settings controls
     temperatureSlider.addEventListener('input', updateTemperatureValue);
     conversationName.addEventListener('change', updateConversationName);
     
-    // History management
     clearAllBtn.addEventListener('click', clearAllHistory);
     searchInput.addEventListener('input', filterHistory);
     
-    // Auto-resize textarea
     promptInput.addEventListener('input', autoResizeTextarea);
     
-    // Theme options
     document.querySelectorAll('.theme-option').forEach(option => {
       option.addEventListener('click', function() {
         const theme = this.getAttribute('data-theme');
         currentSettings.theme = theme;
         applyTheme(theme);
         
-        // Update active state
         document.querySelectorAll('.theme-option').forEach(opt => {
           opt.classList.remove('active');
         });
@@ -143,7 +130,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if ((!message && attachedFiles.length === 0) || isProcessing) return;
     
-    // Check if this is an image generation request
     if (message.startsWith('/image') || message.startsWith('/generate')) {
       const imagePrompt = message.replace(/^\/image\s+|\/generate\s+/, '').trim();
       if (imagePrompt) {
@@ -154,18 +140,15 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
     
-    // Add user message
     addMessage(message, 'user', attachedFiles);
     promptInput.value = '';
     autoResizeTextarea();
     
-    // Show typing indicator
     showTypingIndicator();
     isProcessing = true;
     sendButton.disabled = true;
     
     try {
-      // Prepare files for API
       const fileData = await Promise.all(
         attachedFiles.map(async (file) => {
           if (file.type.startsWith('image/')) {
@@ -176,7 +159,6 @@ document.addEventListener('DOMContentLoaded', function() {
               name: file.name
             };
           } else {
-            // For non-image files, we'll send the filename as reference
             const textContent = await readFileAsText(file);
             return {
               type: file.type,
@@ -225,7 +207,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   
-  // Helper function to read file as text
   function readFileAsText(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -241,10 +222,8 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    // Add user message showing the generation request
     addMessage(`Generate image: "${prompt}"`, 'user');
     
-    // Show typing indicator for image generation
     showTypingIndicator();
     isProcessing = true;
     sendButton.disabled = true;
@@ -263,7 +242,6 @@ document.addEventListener('DOMContentLoaded', function() {
       const data = await response.json();
       
       if (data.status === 'success') {
-        // Add image message
         addImageMessage(data.image_base64, prompt, data.timestamp);
         saveToHistory(`Generate image: "${prompt}"`, `![Generated Image](${data.image_base64})`);
       } else if (data.status === 'loading') {
@@ -323,7 +301,6 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
     `;
     
-    // Remove welcome screen if it exists
     const welcomeScreen = document.querySelector('.welcome-screen');
     if (welcomeScreen) {
       welcomeScreen.remove();
@@ -332,7 +309,6 @@ document.addEventListener('DOMContentLoaded', function() {
     chatContainer.appendChild(messageDiv);
     scrollToBottom();
     
-    // Add event listeners
     const downloadBtn = messageDiv.querySelector('.download-btn');
     const regenerateBtn = messageDiv.querySelector('.regenerate-image-btn');
     const copyBtn = messageDiv.querySelector('.copy-btn');
@@ -361,51 +337,131 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
+  function handleFileUpload(e) {
+    const files = Array.from(e.target.files);
+    
+    files.forEach(file => {
+      if (file.size > 10 * 1024 * 1024) {
+        showToast(`File ${file.name} is too large. Maximum size is 10MB.`);
+        return;
+      }
+      
+      attachedFiles.push(file);
+      addFileAttachment(file);
+    });
+    
+    fileUpload.value = '';
+  }
+  
+  function addFileAttachment(file) {
+    const attachment = document.createElement('div');
+    attachment.className = 'file-attachment';
+    
+    const fileIcon = getFileIcon(file.type);
+    const fileSize = formatFileSize(file.size);
+    
+    attachment.innerHTML = `
+      <div class="file-icon">${fileIcon}</div>
+      <div class="file-info">
+        <div class="file-name">${file.name}</div>
+        <div class="file-size">${fileSize}</div>
+      </div>
+      <button class="remove-attachment" data-filename="${file.name}">
+        <i class="fas fa-times"></i>
+      </button>
+    `;
+    
+    fileAttachments.appendChild(attachment);
+    
+    const removeBtn = attachment.querySelector('.remove-attachment');
+    removeBtn.addEventListener('click', () => {
+      removeFileAttachment(file.name);
+      attachment.remove();
+    });
+  }
+  
+  function getFileIcon(fileType) {
+    if (fileType.startsWith('image/')) return '<i class="fas fa-image"></i>';
+    if (fileType.includes('pdf')) return '<i class="fas fa-file-pdf"></i>';
+    if (fileType.includes('text') || fileType.includes('txt')) return '<i class="fas fa-file-alt"></i>';
+    if (fileType.includes('word') || fileType.includes('document')) return '<i class="fas fa-file-word"></i>';
+    return '<i class="fas fa-file"></i>';
+  }
+  
+  function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+  
+  function removeFileAttachment(filename) {
+    attachedFiles = attachedFiles.filter(file => file.name !== filename);
+  }
+  
+  function clearAttachments() {
+    attachedFiles = [];
+    fileAttachments.innerHTML = '';
+  }
+  
   function addMessage(content, sender, files = []) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${sender}-message`;
     
-    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const displayTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const messageId = generateId();
     messageDiv.dataset.messageId = messageId;
     
     let messageContent = '';
     
-    if (sender === 'bot') {
-      messageContent = marked.parse(content);
-    } else {
-      messageContent = content;
-    }
-    
-    messageDiv.innerHTML = `
-      <div class="message-avatar">
-        ${sender === 'user' 
-          ? '<i class="fas fa-user"></i>' 
-          : `<img src="/static/Icon.gif" alt="AI Assistant">`
-        }
-      </div>
-      <div class="message-content">
-        <div class="message-bubble">
-          ${messageContent}
-          ${files.length > 0 ? createFileAttachments(files) : ''}
-        </div>
-        <div class="message-meta">
-          <span class="message-time">${timestamp}</span>
-          <div class="message-actions">
-            <button class="message-action copy-btn" title="Copy">
-              <i class="fas fa-copy"></i>
-            </button>
-            ${sender === 'bot' ? `
-              <button class="message-action regenerate-btn" title="Regenerate">
-                <i class="fas fa-redo"></i>
+    if (sender === 'user') {
+      messageContent = `
+        <div class="message-content">
+          <div class="message-bubble">
+            ${content ? `<p>${escapeHtml(content)}</p>` : ''}
+            ${files.length > 0 ? renderFileAttachments(files) : ''}
+          </div>
+          <div class="message-meta">
+            <span class="message-time">${displayTime}</span>
+            <div class="message-actions">
+              <button class="message-action copy-btn" title="Copy message">
+                <i class="fas fa-copy"></i>
               </button>
-            ` : ''}
+            </div>
           </div>
         </div>
-      </div>
-    `;
+        <div class="message-avatar">
+          <i class="fas fa-user"></i>
+        </div>
+      `;
+    } else {
+      const formattedContent = marked.parse(content);
+      messageContent = `
+        <div class="message-avatar">
+          <img src="/static/Icon.gif" alt="AI Assistant">
+        </div>
+        <div class="message-content">
+          <div class="message-bubble">
+            ${formattedContent}
+          </div>
+          <div class="message-meta">
+            <span class="message-time">${displayTime}</span>
+            <div class="message-actions">
+              <button class="message-action copy-btn" title="Copy message">
+                <i class="fas fa-copy"></i>
+              </button>
+              <button class="message-action regenerate-btn" title="Regenerate response">
+                <i class="fas fa-redo"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
     
-    // Remove welcome screen if it exists
+    messageDiv.innerHTML = messageContent;
+    
     const welcomeScreen = document.querySelector('.welcome-screen');
     if (welcomeScreen) {
       welcomeScreen.remove();
@@ -414,101 +470,58 @@ document.addEventListener('DOMContentLoaded', function() {
     chatContainer.appendChild(messageDiv);
     scrollToBottom();
     
-    // Add event listeners for message actions
     const copyBtn = messageDiv.querySelector('.copy-btn');
-    const regenerateBtn = messageDiv.querySelector('.regenerate-btn');
+    copyBtn.addEventListener('click', () => {
+      copyToClipboard(content);
+      showToast('Message copied to clipboard!');
+    });
     
-    copyBtn.addEventListener('click', () => copyToClipboard(content));
-    
-    if (regenerateBtn) {
-      regenerateBtn.addEventListener('click', () => regenerateResponse(messageDiv));
-    }
-    
-    // Apply syntax highlighting to code blocks
     if (sender === 'bot') {
-      setTimeout(() => {
-        messageDiv.querySelectorAll('pre code').forEach(block => {
-          hljs.highlightElement(block);
-        });
-      }, 0);
+      const regenerateBtn = messageDiv.querySelector('.regenerate-btn');
+      regenerateBtn.addEventListener('click', () => {
+        const lastUserMessage = getLastUserMessage();
+        if (lastUserMessage) {
+          promptInput.value = lastUserMessage;
+          sendMessage();
+        }
+      });
+      
+      messageDiv.querySelectorAll('pre code').forEach((block) => {
+        hljs.highlightElement(block);
+      });
     }
   }
   
-  function createFileAttachments(files) {
-    let attachmentsHTML = '<div class="message-files">';
-    
+  function renderFileAttachments(files) {
+    let html = '<div class="attached-files">';
     files.forEach(file => {
-      if (file.type.startsWith('image/')) {
-        const url = URL.createObjectURL(file);
-        attachmentsHTML += `
-          <div class="image-attachment-container">
-            <img src="${url}" alt="${file.name}" class="attachment-image" onclick="showImageModal('${url}')">
-          </div>
-        `;
-      } else {
-        attachmentsHTML += `
-          <div class="file-attachment">
-            <i class="${getFileIcon(file.name)}"></i>
-            <span>${file.name}</span>
-          </div>
-        `;
-      }
+      const fileIcon = getFileIcon(file.type);
+      html += `
+        <div class="attached-file">
+          <div class="file-icon">${fileIcon}</div>
+          <span>${file.name}</span>
+        </div>
+      `;
     });
+    html += '</div>';
+    return html;
+  }
+  
+  function getLastUserMessage() {
+    const messages = document.querySelectorAll('.user-message');
+    if (messages.length === 0) return '';
     
-    attachmentsHTML += '</div>';
-    return attachmentsHTML;
-  }
-  
-  function getFileIcon(filename) {
-    const ext = filename.split('.').pop().toLowerCase();
-    const iconMap = {
-      'pdf': 'fas fa-file-pdf',
-      'doc': 'fas fa-file-word',
-      'docx': 'fas fa-file-word',
-      'txt': 'fas fa-file-alt',
-      'xls': 'fas fa-file-excel',
-      'xlsx': 'fas fa-file-excel',
-      'ppt': 'fas fa-file-powerpoint',
-      'pptx': 'fas fa-file-powerpoint',
-      'zip': 'fas fa-file-archive',
-      'rar': 'fas fa-file-archive'
-    };
-    return iconMap[ext] || 'fas fa-file';
-  }
-  
-  function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(() => {
-      showToast('Copied to clipboard!');
-    }).catch(err => {
-      console.error('Failed to copy: ', err);
-      showToast('Failed to copy text');
-    });
-  }
-  
-  function regenerateResponse(messageElement) {
-    // Find the user message that prompted this response
-    const messages = Array.from(chatContainer.querySelectorAll('.user-message'));
-    const lastUserMessage = messages[messages.length - 1];
-    
-    if (lastUserMessage) {
-      const userMessageContent = lastUserMessage.querySelector('.message-bubble').textContent;
-      
-      // Remove the current bot message
-      messageElement.remove();
-      
-      // Resend the user message
-      promptInput.value = userMessageContent;
-      sendMessage();
-    }
+    const lastMessage = messages[messages.length - 1];
+    return lastMessage.querySelector('.message-bubble p')?.textContent || '';
   }
   
   function showTypingIndicator() {
-    typingIndicator.classList.add('visible');
+    typingIndicator.style.display = 'flex';
     scrollToBottom();
   }
   
   function hideTypingIndicator() {
-    typingIndicator.classList.remove('visible');
+    typingIndicator.style.display = 'none';
   }
   
   function scrollToBottom() {
@@ -517,22 +530,127 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 100);
   }
   
-  function startNewChat() {
-    if (isProcessing) return;
+  function toggleSidebar() {
+    sidebar.classList.toggle('active');
+    overlay.classList.toggle('active');
+  }
+  
+  function closeAllPanels() {
+    sidebar.classList.remove('active');
+    settingsPanel.classList.remove('active');
+    overlay.classList.remove('active');
+  }
+  
+  function openSettings() {
+    settingsPanel.classList.add('active');
+    overlay.classList.add('active');
+  }
+  
+  function closeSettingsPanel() {
+    settingsPanel.classList.remove('active');
+    overlay.classList.remove('active');
+  }
+  
+  function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    currentSettings.theme = newTheme;
+    applyTheme(newTheme);
+    saveSettings();
+  }
+  
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  }
+  
+  function updateTemperatureValue() {
+    const value = temperatureSlider.value;
+    tempValue.textContent = value;
+    currentSettings.temperature = parseFloat(value);
+  }
+  
+  function updateConversationName() {
+    const name = conversationName.value.trim() || 'New Conversation';
+    currentSettings.conversationName = name;
+    conversationTitle.textContent = name;
+  }
+  
+  function saveSettings() {
+    currentSettings.systemPrompt = systemPromptInput.value;
+    localStorage.setItem('aiChatbotSettings', JSON.stringify(currentSettings));
+    showToast('Settings saved successfully!');
+    closeSettingsPanel();
+  }
+  
+  function resetSettings() {
+    currentSettings = {
+      theme: 'dark',
+      temperature: 0.7,
+      systemPrompt: '',
+      conversationName: 'New Conversation'
+    };
     
+    updateUIFromSettings();
+    saveSettings();
+    showToast('Settings reset to defaults');
+  }
+  
+  function loadSettings() {
+    const saved = localStorage.getItem('aiChatbotSettings');
+    if (saved) {
+      currentSettings = { ...currentSettings, ...JSON.parse(saved) };
+    }
+  }
+  
+  function updateUIFromSettings() {
+    applyTheme(currentSettings.theme);
+    temperatureSlider.value = currentSettings.temperature;
+    tempValue.textContent = currentSettings.temperature;
+    systemPromptInput.value = currentSettings.systemPrompt || '';
+    conversationName.value = currentSettings.conversationName;
+    conversationTitle.textContent = currentSettings.conversationName;
+    
+    document.querySelectorAll('.theme-option').forEach(option => {
+      option.classList.remove('active');
+      if (option.getAttribute('data-theme') === currentSettings.theme) {
+        option.classList.add('active');
+      }
+    });
+  }
+  
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    
+    const themeIcon = themeToggle.querySelector('i');
+    if (theme === 'light') {
+      themeIcon.className = 'fas fa-sun';
+    } else {
+      themeIcon.className = 'fas fa-moon';
+    }
+  }
+  
+  function startNewChat() {
     currentConversationId = generateId();
     currentSettings.conversationName = 'New Conversation';
-    conversationTitle.textContent = currentSettings.conversationName;
-    conversationName.value = '';
     
-    // Clear chat container and show welcome screen
+    conversationTitle.textContent = 'New Conversation';
+    conversationName.value = 'New Conversation';
+    
     chatContainer.innerHTML = `
       <div class="welcome-screen">
         <div class="welcome-content">
           <div class="ai-avatar">
             <img src="/static/Icon.gif" alt="AI Assistant">
           </div>
-          <h1>Hello! How can I help you today?</h1>
+          <h1>How can I help you today?</h1>
           <p>Your intelligent assistant powered by Gemini 2.0 Flash</p>
           
           <div class="quick-prompts">
@@ -559,7 +677,8 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
     `;
     
-    // Reattach event listeners to quick prompts
+    clearAttachments();
+    
     document.querySelectorAll('.quick-prompt').forEach(prompt => {
       prompt.addEventListener('click', () => {
         const promptText = prompt.getAttribute('data-prompt');
@@ -569,331 +688,156 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
     
-    clearAttachments();
-    closeAllPanels();
-    saveSettings();
-  }
-  
-  function toggleSidebar() {
-    sidebar.classList.toggle('active');
-    overlay.classList.toggle('active');
-  }
-  
-  function closeAllPanels() {
-    sidebar.classList.remove('active');
-    settingsPanel.classList.remove('active');
-    overlay.classList.remove('active');
-  }
-  
-  function openSettings() {
-    settingsPanel.classList.add('active');
-    overlay.classList.add('active');
-    
-    // Populate settings fields
-    conversationName.value = currentSettings.conversationName;
-    systemPromptInput.value = currentSettings.systemPrompt;
-    temperatureSlider.value = currentSettings.temperature;
-    updateTemperatureValue();
-    
-    // Set active theme option
-    document.querySelectorAll('.theme-option').forEach(opt => {
-      opt.classList.remove('active');
-      if (opt.getAttribute('data-theme') === currentSettings.theme) {
-        opt.classList.add('active');
-      }
-    });
-  }
-  
-  function closeSettingsPanel() {
-    settingsPanel.classList.remove('active');
-    overlay.classList.remove('active');
-  }
-  
-  function toggleTheme() {
-    const newTheme = currentSettings.theme === 'dark' ? 'light' : 'dark';
-    currentSettings.theme = newTheme;
-    applyTheme(newTheme);
-    saveSettings();
-  }
-  
-  function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    
-    // Update theme toggle icon
-    const icon = themeToggle.querySelector('i');
-    icon.className = theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
-  }
-  
-  function loadTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    currentSettings.theme = savedTheme;
-    applyTheme(savedTheme);
-  }
-  
-  function toggleFullscreen() {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable fullscreen: ${err.message}`);
-      });
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
+    if (window.innerWidth <= 768) {
+      closeAllPanels();
     }
-  }
-  
-  function updateTemperatureValue() {
-    tempValue.textContent = temperatureSlider.value;
-  }
-  
-  function updateConversationName() {
-    currentSettings.conversationName = conversationName.value || 'New Conversation';
-    conversationTitle.textContent = currentSettings.conversationName;
-    saveSettings();
-  }
-  
-  function handleFileUpload(event) {
-    const files = Array.from(event.target.files);
-    
-    files.forEach(file => {
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
-        showToast('File size too large. Please select files under 10MB.');
-        return;
-      }
-      
-      attachedFiles.push(file);
-      displayFilePreview(file);
-    });
-    
-    // Reset file input
-    fileUpload.value = '';
-  }
-  
-  function displayFilePreview(file) {
-    const preview = document.createElement('div');
-    preview.className = 'file-preview';
-    
-    let previewContent = '';
-    
-    if (file.type.startsWith('image/')) {
-      const url = URL.createObjectURL(file);
-      previewContent = `<img src="${url}" alt="${file.name}" class="preview-image">`;
-    } else {
-      previewContent = `<i class="${getFileIcon(file.name)}"></i>`;
-    }
-    
-    preview.innerHTML = `
-      ${previewContent}
-      <span>${file.name}</span>
-      <button class="remove-file" data-filename="${file.name}">
-        <i class="fas fa-times"></i>
-      </button>
-    `;
-    
-    fileAttachments.appendChild(preview);
-    
-    // Add event listener to remove button
-    preview.querySelector('.remove-file').addEventListener('click', () => {
-      removeFile(file.name);
-      preview.remove();
-    });
-  }
-  
-  function removeFile(filename) {
-    attachedFiles = attachedFiles.filter(file => file.name !== filename);
-  }
-  
-  function clearAttachments() {
-    attachedFiles.forEach(file => {
-      if (file.type.startsWith('image/')) {
-        URL.revokeObjectURL(file);
-      }
-    });
-    attachedFiles = [];
-    fileAttachments.innerHTML = '';
-  }
-  
-  function saveSettings() {
-    currentSettings.temperature = parseFloat(temperatureSlider.value);
-    currentSettings.systemPrompt = systemPromptInput.value;
-    
-    localStorage.setItem('chatSettings', JSON.stringify(currentSettings));
-    showToast('Settings saved successfully!');
-    closeSettingsPanel();
-  }
-  
-  function resetSettings() {
-    currentSettings = {
-      theme: 'dark',
-      temperature: 0.7,
-      systemPrompt: '',
-      conversationName: 'New Conversation'
-    };
-    
-    localStorage.setItem('chatSettings', JSON.stringify(currentSettings));
-    updateUIFromSettings();
-    showToast('Settings reset to defaults!');
-  }
-  
-  function loadSettings() {
-    const saved = localStorage.getItem('chatSettings');
-    if (saved) {
-      currentSettings = { ...currentSettings, ...JSON.parse(saved) };
-    }
-    updateUIFromSettings();
-  }
-  
-  function updateUIFromSettings() {
-    applyTheme(currentSettings.theme);
-    conversationTitle.textContent = currentSettings.conversationName;
-    conversationName.value = currentSettings.conversationName;
-    systemPromptInput.value = currentSettings.systemPrompt;
-    temperatureSlider.value = currentSettings.temperature;
-    updateTemperatureValue();
   }
   
   function saveToHistory(userMessage, botResponse) {
-    const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+    const history = getConversationHistory();
+    const conversation = {
+      id: currentConversationId,
+      name: currentSettings.conversationName,
+      timestamp: new Date().toISOString(),
+      messages: [
+        { role: 'user', content: userMessage },
+        { role: 'bot', content: botResponse }
+      ]
+    };
     
-    // Update current conversation or create new one
-    let conversation = history.find(conv => conv.id === currentConversationId);
-    
-    if (!conversation) {
-      conversation = {
-        id: currentConversationId,
-        title: userMessage.substring(0, 50) + (userMessage.length > 50 ? '...' : ''),
-        timestamp: new Date().toISOString(),
-        messages: []
-      };
+    const existingIndex = history.findIndex(conv => conv.id === currentConversationId);
+    if (existingIndex !== -1) {
+      history[existingIndex].messages.push(
+        { role: 'user', content: userMessage },
+        { role: 'bot', content: botResponse }
+      );
+      history[existingIndex].timestamp = new Date().toISOString();
+      history[existingIndex].name = currentSettings.conversationName;
+    } else {
       history.unshift(conversation);
     }
     
-    conversation.messages.push({
-      user: userMessage,
-      bot: botResponse,
-      timestamp: new Date().toISOString()
-    });
-    
-    // Update title if it's the first message
-    if (conversation.messages.length === 1) {
-      conversation.title = userMessage.substring(0, 50) + (userMessage.length > 50 ? '...' : '');
-    }
-    
-    localStorage.setItem('chatHistory', JSON.stringify(history));
+    localStorage.setItem('aiChatbotHistory', JSON.stringify(history));
     loadConversationHistory();
   }
   
+  function getConversationHistory() {
+    const history = localStorage.getItem('aiChatbotHistory');
+    return history ? JSON.parse(history) : [];
+  }
+  
   function loadConversationHistory() {
-    const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+    const history = getConversationHistory();
     historyList.innerHTML = '';
     
     if (history.length === 0) {
       historyList.innerHTML = `
         <div class="empty-history">
           <i class="fas fa-comments"></i>
-          <div>No conversations yet</div>
-          <div style="font-size: 11px; margin-top: 8px; opacity: 0.7;">Start a new chat to see history here</div>
+          <p>No conversations yet</p>
         </div>
       `;
       return;
     }
     
     history.forEach(conversation => {
-      const item = document.createElement('div');
-      item.className = 'history-item';
-      if (conversation.id === currentConversationId) {
-        item.classList.add('active');
-      }
+      const historyItem = document.createElement('div');
+      historyItem.className = 'history-item';
+      historyItem.dataset.conversationId = conversation.id;
       
-      item.innerHTML = `
-        <div class="history-content">
-          <div class="history-title">${conversation.title}</div>
-          <div class="history-time">${new Date(conversation.timestamp).toLocaleDateString()}</div>
+      const lastMessage = conversation.messages[conversation.messages.length - 1];
+      const preview = lastMessage && lastMessage.role === 'bot' 
+        ? truncateText(lastMessage.content.replace(/<[^>]*>/g, ''), 50)
+        : 'New conversation';
+      
+      const time = new Date(conversation.timestamp).toLocaleDateString();
+      
+      historyItem.innerHTML = `
+        <div class="history-item-content">
+          <div class="history-item-name">${conversation.name}</div>
+          <div class="history-item-preview">${preview}</div>
+          <div class="history-item-time">${time}</div>
         </div>
-        <button class="delete-history" data-id="${conversation.id}">
+        <button class="history-item-delete" title="Delete conversation">
           <i class="fas fa-trash"></i>
         </button>
       `;
       
-      item.addEventListener('click', (e) => {
-        if (!e.target.closest('.delete-history')) {
-          loadConversation(conversation.id);
+      historyList.appendChild(historyItem);
+      
+      historyItem.addEventListener('click', (e) => {
+        if (!e.target.closest('.history-item-delete')) {
+          loadConversation(conversation);
         }
       });
       
-      const deleteBtn = item.querySelector('.delete-history');
+      const deleteBtn = historyItem.querySelector('.history-item-delete');
       deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         deleteConversation(conversation.id);
       });
-      
-      historyList.appendChild(item);
     });
   }
   
-  function loadConversation(conversationId) {
-    const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-    const conversation = history.find(conv => conv.id === conversationId);
+  function loadConversation(conversation) {
+    currentConversationId = conversation.id;
+    currentSettings.conversationName = conversation.name;
     
-    if (conversation) {
-      currentConversationId = conversationId;
-      currentSettings.conversationName = conversation.title;
-      conversationTitle.textContent = conversation.title;
-      conversationName.value = conversation.title;
-      
-      // Clear and rebuild chat
-      chatContainer.innerHTML = '';
-      
-      conversation.messages.forEach(msg => {
-        if (msg.user.startsWith('Generate image:')) {
-          // Handle image messages
-          const prompt = msg.user.replace('Generate image: "', '').replace('"', '');
-          const imageMatch = msg.bot.match(/!\[Generated Image\]\((.*?)\)/);
-          if (imageMatch && imageMatch[1]) {
-            addImageMessage(imageMatch[1], prompt, new Date().toISOString());
-          }
-        } else {
-          addMessage(msg.user, 'user');
-          addMessage(msg.bot, 'bot');
+    conversationTitle.textContent = conversation.name;
+    conversationName.value = conversation.name;
+    
+    chatContainer.innerHTML = '';
+    
+    conversation.messages.forEach(message => {
+      if (message.content.includes('![Generated Image]')) {
+        const imageMatch = message.content.match(/!\[Generated Image\]\((.*?)\)/);
+        if (imageMatch) {
+          const imageData = imageMatch[1];
+          const promptMatch = message.content.match(/Prompt: "(.*?)"/);
+          const prompt = promptMatch ? promptMatch[1] : 'Generated image';
+          addImageMessage(imageData, prompt, conversation.timestamp);
         }
-      });
-      
+      } else {
+        addMessage(message.content, message.role);
+      }
+    });
+    
+    if (window.innerWidth <= 768) {
       closeAllPanels();
-      loadConversationHistory();
-      saveSettings();
     }
   }
   
   function deleteConversation(conversationId) {
-    let history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
-    history = history.filter(conv => conv.id !== conversationId);
-    
-    localStorage.setItem('chatHistory', JSON.stringify(history));
+    const history = getConversationHistory();
+    const filteredHistory = history.filter(conv => conv.id !== conversationId);
+    localStorage.setItem('aiChatbotHistory', JSON.stringify(filteredHistory));
+    loadConversationHistory();
     
     if (conversationId === currentConversationId) {
       startNewChat();
     }
     
-    loadConversationHistory();
     showToast('Conversation deleted');
   }
   
   function clearAllHistory() {
-    if (confirm('Are you sure you want to clear all conversation history?')) {
-      localStorage.removeItem('chatHistory');
-      startNewChat();
+    if (confirm('Are you sure you want to clear all conversation history? This action cannot be undone.')) {
+      localStorage.removeItem('aiChatbotHistory');
       loadConversationHistory();
-      showToast('All history cleared!');
+      startNewChat();
+      showToast('All history cleared');
     }
   }
   
   function filterHistory() {
     const searchTerm = searchInput.value.toLowerCase();
-    const items = historyList.querySelectorAll('.history-item');
+    const historyItems = document.querySelectorAll('.history-item');
     
-    items.forEach(item => {
-      const title = item.querySelector('.history-title').textContent.toLowerCase();
-      if (title.includes(searchTerm)) {
+    historyItems.forEach(item => {
+      const name = item.querySelector('.history-item-name').textContent.toLowerCase();
+      const preview = item.querySelector('.history-item-preview').textContent.toLowerCase();
+      
+      if (name.includes(searchTerm) || preview.includes(searchTerm)) {
         item.style.display = 'flex';
       } else {
         item.style.display = 'none';
@@ -901,66 +845,76 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
+  function truncateText(text, maxLength) {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  }
+  
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).catch(err => {
+      console.error('Failed to copy text: ', err);
+    });
+  }
+  
   function showToast(message) {
-    // Remove existing toast
-    const existingToast = document.querySelector('.toast');
-    if (existingToast) {
-      existingToast.remove();
-    }
-    
     const toast = document.createElement('div');
     toast.className = 'toast';
     toast.textContent = message;
     
     document.body.appendChild(toast);
     
-    // Show toast with animation
-    setTimeout(() => toast.classList.add('show'), 100);
+    setTimeout(() => {
+      toast.classList.add('show');
+    }, 100);
     
-    // Hide toast after 3 seconds
     setTimeout(() => {
       toast.classList.remove('show');
       setTimeout(() => {
-        if (toast.parentNode) {
-          toast.remove();
-        }
+        document.body.removeChild(toast);
       }, 300);
     }, 3000);
+  }
+  
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
   
   function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
   }
+  
+  window.showImageModal = function(imageData) {
+    const modal = document.createElement('div');
+    modal.className = 'image-modal';
+    modal.innerHTML = `
+      <div class="image-modal-content">
+        <button class="modal-close">
+          <i class="fas fa-times"></i>
+        </button>
+        <img src="${imageData}" alt="Full size generated image">
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    const closeBtn = modal.querySelector('.modal-close');
+    closeBtn.addEventListener('click', () => {
+      document.body.removeChild(modal);
+    });
+    
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        document.body.removeChild(modal);
+      }
+    });
+  };
 });
 
-// Global functions for image handling
-function showImageModal(imageUrl) {
-  const modal = document.createElement('div');
-  modal.className = 'image-modal';
-  modal.innerHTML = `
-    <div class="modal-content">
-      <span class="close-modal">&times;</span>
-      <img src="${imageUrl}" alt="Full size image">
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  
-  modal.querySelector('.close-modal').addEventListener('click', () => {
-    modal.remove();
-  });
-  
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-      modal.remove();
-    }
-  });
-}
-
-// Handle fullscreen change
 document.addEventListener('fullscreenchange', function() {
-  const fullscreenToggle = document.getElementById('fullscreen-toggle');
-  const icon = fullscreenToggle.querySelector('i');
+  const fullscreenBtn = document.getElementById('fullscreen-toggle');
+  const icon = fullscreenBtn.querySelector('i');
   
   if (document.fullscreenElement) {
     icon.className = 'fas fa-compress';
