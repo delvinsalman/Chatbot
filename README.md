@@ -1,6 +1,6 @@
 # 🤖 **AI ChatBot**
 
-An advanced, interactive AI chatbot developed using **Flask, Python, Gemini 2.0 Flash, JavaScript, HTML, and CSS**. This bot features a modern, responsive interface and provides sophisticated, dual-model capabilities, including **real-time image generation**, multi-file analysis, and deep model customization.
+A **full-stack AI Chatbot application** built with **Python Flask** backend that integrates **Google's Gemini 2.0 Flash API** for AI conversations and **Hugging Face's Stable Diffusion models** for image generation. The frontend uses modern **HTML5**, **CSS3** with CSS variables for theming, and **vanilla JavaScript** with **Marked.js** for markdown rendering and **Highlight.js** for code syntax highlighting, all wrapped in a responsive chat interface with real-time messaging capabilities.
 
 ---
 
