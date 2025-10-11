@@ -23,7 +23,7 @@ GEMINI_API_KEY = "YOUR API KEY"
 
 # Hugging Face API for image generation - Using Stable Diffusion XL (should work)
 HUGGING_FACE_API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
-HUGGING_FACE_API_KEY = "OUR API KEY"
+HUGGING_FACE_API_KEY = "YOUR API KEY"
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
