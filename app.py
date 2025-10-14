@@ -22,14 +22,81 @@ app.config['GENERATED_IMAGES_FOLDER'] = GENERATED_IMAGES_FOLDER
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 GEMINI_API_KEY = "YOUR API KEY"
 
-# Updated Hugging Face API for better image generation - Using Stable Diffusion 2.1
-HUGGING_FACE_API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1"
+# Updated Hugging Face API for latest free image generation models
 HUGGING_FACE_API_KEY = "YOUR API KEY"
 
-# Alternative models (fallback options)
-ALTERNATIVE_MODELS = [
-    "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5",
-    "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+# Latest free models (updated to current best free options)
+LATEST_FREE_MODELS = [
+    {
+        "url": "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell",
+        "name": "FLUX.1 Schnell",
+        "requires_auth": True,
+        "params": {
+            "guidance_scale": 3.5,
+            "num_inference_steps": 4,
+            "width": 1024,
+            "height": 1024
+        }
+    },
+    {
+        "url": "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
+        "name": "SDXL 1.0",
+        "requires_auth": True,
+        "params": {
+            "num_inference_steps": 20,
+            "guidance_scale": 7.5,
+            "width": 1024,
+            "height": 1024
+        }
+    },
+    {
+        "url": "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5",
+        "name": "Stable Diffusion 1.5",
+        "requires_auth": True,
+        "params": {
+            "num_inference_steps": 25,
+            "guidance_scale": 7.5,
+            "width": 512,
+            "height": 512
+        }
+    },
+    {
+        "url": "https://api-inference.huggingface.co/models/wavymulder/Analog-Diffusion",
+        "name": "Analog Diffusion",
+        "requires_auth": True,
+        "params": {
+            "num_inference_steps": 25,
+            "guidance_scale": 7.5,
+            "width": 512,
+            "height": 512
+        }
+    }
+]
+
+# Free models that don't require API key (community models)
+FREE_COMMUNITY_MODELS = [
+    {
+        "url": "https://api-inference.huggingface.co/models/ogkalu/Comic-Diffusion",
+        "name": "Comic Diffusion",
+        "requires_auth": False,
+        "params": {
+            "num_inference_steps": 25,
+            "guidance_scale": 7.5,
+            "width": 512,
+            "height": 512
+        }
+    },
+    {
+        "url": "https://api-inference.huggingface.co/models/prompthero/openjourney",
+        "name": "OpenJourney",
+        "requires_auth": False,
+        "params": {
+            "num_inference_steps": 25,
+            "guidance_scale": 7.5,
+            "width": 512,
+            "height": 512
+        }
+    }
 ]
 
 def allowed_file(filename):
@@ -303,7 +370,7 @@ def generate_definition(prompt):
 
 @app.route('/generate_image', methods=['POST'])
 def generate_image():
-    """Generate image using Hugging Face Stable Diffusion 2.1 API with fallback"""
+    """Generate image using latest free Hugging Face models with fallback system"""
     try:
         data = request.json
         prompt = data.get('prompt', '')
@@ -314,23 +381,66 @@ def generate_image():
                 'message': 'No prompt provided'
             }), 400
         
-        # Enhanced prompt for better results
-        enhanced_prompt = f"high quality, detailed, professional, 4k, {prompt}"
+        print(f"Generating image with prompt: {prompt}")
         
+        # Try premium models first (with API key)
+        for model in LATEST_FREE_MODELS:
+            print(f"Trying model: {model['name']}")
+            result = try_model_generation(model, prompt)
+            
+            if result['status'] == 'success':
+                return result['response']
+            elif result['status'] == 'loading':
+                # Skip loading models for now, try next one
+                continue
+        
+        # If premium models fail, try free community models
+        print("Trying free community models...")
+        for model in FREE_COMMUNITY_MODELS:
+            print(f"Trying free model: {model['name']}")
+            result = try_model_generation(model, prompt)
+            
+            if result['status'] == 'success':
+                return result['response']
+            elif result['status'] == 'loading':
+                continue
+        
+        # If all models fail
+        return jsonify({
+            'status': 'error',
+            'message': 'All image generation services are currently unavailable. Please try again in a few moments.'
+        }), 503
+            
+    except Exception as e:
+        print(f"Unexpected error in image generation: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f"Image generation error: {str(e)}"
+        }), 500
+
+def try_model_generation(model, prompt):
+    """Try to generate image with a specific model"""
+    try:
         headers = {
-            "Authorization": f"Bearer {HUGGING_FACE_API_KEY}",
             "Content-Type": "application/json"
         }
         
-        # Improved payload for better image quality
+        # Add authorization if required
+        if model.get('requires_auth', True):
+            headers["Authorization"] = f"Bearer {HUGGING_FACE_API_KEY}"
+        
+        # Enhanced prompt for better results
+        enhanced_prompt = enhance_prompt(prompt, model['name'])
+        
+        # Prepare payload with model-specific parameters
         payload = {
             "inputs": enhanced_prompt,
             "parameters": {
-                "num_inference_steps": 30,  # Increased for better quality
-                "guidance_scale": 7.5,
-                "width": 512,
-                "height": 512,
-                "negative_prompt": "blurry, low quality, distorted, ugly, bad anatomy, worst quality"
+                "num_inference_steps": model['params']['num_inference_steps'],
+                "guidance_scale": model['params']['guidance_scale'],
+                "width": model['params']['width'],
+                "height": model['params']['height'],
+                "negative_prompt": get_negative_prompt(model['name'])
             },
             "options": {
                 "wait_for_model": True,
@@ -338,48 +448,37 @@ def generate_image():
             }
         }
         
-        print(f"Generating image with prompt: {enhanced_prompt}")
+        # Add model-specific parameters
+        if model['name'] == "FLUX.1 Schnell":
+            payload["parameters"]["guidance_scale"] = 3.5
         
-        # Try primary model first
-        response = try_image_generation(HUGGING_FACE_API_URL, headers, payload)
-        
-        if response['status'] == 'success':
-            return response['data']
-        else:
-            # Try alternative models if primary fails
-            for model_url in ALTERNATIVE_MODELS:
-                print(f"Trying alternative model: {model_url}")
-                response = try_image_generation(model_url, headers, payload)
-                if response['status'] == 'success':
-                    return response['data']
-            
-            # If all models fail
-            return jsonify({
-                'status': 'error',
-                'message': 'All image generation services are currently unavailable. Please try again later.'
-            }), 503
-            
-    except Exception as e:
-        print(f"Unexpected error in image generation: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'message': f"Unexpected error: {str(e)}"
-        }), 500
-
-def try_image_generation(api_url, headers, payload):
-    """Try to generate image with a specific model"""
-    try:
         response = requests.post(
-            api_url,
+            model['url'],
             headers=headers,
             json=payload,
             timeout=120
         )
         
         if response.status_code == 503:
-            return {'status': 'loading', 'message': 'Model is loading...'}
+            return {
+                'status': 'loading', 
+                'message': f"{model['name']} is loading, please wait..."
+            }
+        elif response.status_code == 422:
+            return {
+                'status': 'error',
+                'message': f"{model['name']} validation error"
+            }
             
         response.raise_for_status()
+        
+        # Check if response is valid image data
+        if len(response.content) < 1000:  # Too small to be a valid image
+            error_text = response.text
+            return {
+                'status': 'error',
+                'message': f"Invalid response from {model['name']}: {error_text}"
+            }
         
         # Save the generated image
         if not os.path.exists(app.config['GENERATED_IMAGES_FOLDER']):
@@ -396,11 +495,12 @@ def try_image_generation(api_url, headers, payload):
         
         return {
             'status': 'success',
-            'data': jsonify({
+            'response': jsonify({
                 'status': 'success',
                 'image_url': f"/{image_path}",
                 'image_base64': f"data:image/png;base64,{image_base64}",
-                'prompt': payload['inputs'].replace('high quality, detailed, professional, 4k, ', ''),
+                'prompt': prompt,
+                'model_used': model['name'],
                 'timestamp': datetime.now().isoformat()
             }).get_json()
         }
@@ -410,16 +510,58 @@ def try_image_generation(api_url, headers, payload):
         if hasattr(e, 'response') and e.response:
             try:
                 error_details = e.response.json()
-                error_msg = error_details.get('error', {}).get('message', error_msg)
+                if 'error' in error_details:
+                    error_msg = error_details['error']
+                elif 'message' in error_details:
+                    error_msg = error_details['message']
             except:
                 pass
         
-        print(f"Image Generation Error for {api_url}: {error_msg}")
-        return {'status': 'error', 'message': error_msg}
+        print(f"Model {model['name']} Error: {error_msg}")
+        return {
+            'status': 'error', 
+            'message': f"{model['name']}: {error_msg}"
+        }
         
     except Exception as e:
-        print(f"Unexpected error: {str(e)}")
-        return {'status': 'error', 'message': str(e)}
+        print(f"Unexpected error with {model['name']}: {str(e)}")
+        return {
+            'status': 'error', 
+            'message': f"{model['name']}: {str(e)}"
+        }
+
+def enhance_prompt(prompt, model_name):
+    """Enhance the prompt based on the model being used"""
+    base_enhancements = "high quality, detailed, professional, 4k, masterpiece, best quality"
+    
+    model_specific_enhancements = {
+        "FLUX.1 Schnell": "sharp focus, studio quality, hyperdetailed, intricate details",
+        "SDXL 1.0": "high resolution, detailed, professional photography",
+        "Stable Diffusion 1.5": "trending on artstation, high quality",
+        "Analog Diffusion": "analog style, film grain, vintage",
+        "Comic Diffusion": "comic book style, vibrant colors, graphic novel",
+        "OpenJourney": "midjourney style, artistic, creative"
+    }
+    
+    enhancement = model_specific_enhancements.get(model_name, "high quality, detailed")
+    
+    return f"{enhancement}, {base_enhancements}, {prompt}"
+
+def get_negative_prompt(model_name):
+    """Get appropriate negative prompt for each model"""
+    base_negative = "blurry, low quality, distorted, ugly, bad anatomy, worst quality, lowres, bad hands, error, missing fingers, extra digit, fewer digits, cropped, jpeg artifacts, signature, watermark, username, text"
+    
+    model_specific_negative = {
+        "FLUX.1 Schnell": "cartoon, 3d, render, painting, illustration",
+        "SDXL 1.0": "cartoon, 3d, render, painting",
+        "Stable Diffusion 1.5": "cartoon, 3d, disfigured, bad art, deformed, poorly drawn"
+    }
+    
+    additional_negative = model_specific_negative.get(model_name, "")
+    
+    if additional_negative:
+        return f"{base_negative}, {additional_negative}"
+    return base_negative
 
 @app.route('/update_conversation_name', methods=['POST'])
 def update_conversation_name():
@@ -470,6 +612,23 @@ def upload_file():
             
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/get_available_models', methods=['GET'])
+def get_available_models():
+    """Endpoint to get available image generation models"""
+    models_info = []
+    
+    for model in LATEST_FREE_MODELS + FREE_COMMUNITY_MODELS:
+        models_info.append({
+            'name': model['name'],
+            'requires_auth': model.get('requires_auth', True),
+            'resolution': f"{model['params']['width']}x{model['params']['height']}"
+        })
+    
+    return jsonify({
+        'status': 'success',
+        'models': models_info
+    })
 
 if __name__ == '__main__':
     if not os.path.exists(UPLOAD_FOLDER):
