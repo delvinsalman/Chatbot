@@ -68,6 +68,10 @@ Displays the capability of making us of AI models to generate images from text p
 
 https://github.com/user-attachments/assets/dfb9d9ec-e941-45a1-a2ed-40bbbc733eb4
 
++
+
+
+https://github.com/user-attachments/assets/91af5f61-6abf-4083-b805-9530a8f5864c
 
 ---
 
