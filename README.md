@@ -1,12 +1,12 @@
 # 🤖 **AI ChatBot**
 
-A **full-stack AI Chatbot application** built with **Python Flask** backend that integrates **Google's Gemini 2.0 Flash API** for AI conversations and **Hugging Face's Stable Diffusion models** for image generation. The frontend uses modern **HTML5**, **CSS3** with CSS variables for theming, and **vanilla JavaScript** with **Marked.js** for markdown rendering and **Highlight.js** for code syntax highlighting, all wrapped in a responsive chat interface with real-time messaging capabilities.
+A **full-stack AI Chatbot application** built with **Python Flask** backend that integrates **Google's Gemini 2.0 Flash API** for AI conversations and the **Hugging Face Inference API** for image generation. The frontend uses modern **HTML5**, **CSS3** with CSS variables for theming, and **vanilla JavaScript** with **Marked.js** for markdown rendering and **Highlight.js** for code syntax highlighting, all wrapped in a responsive chat interface with real-time messaging capabilities.
 
 ---
 
 ## 📋 **Overview**
 
-The **AI ChatBot** is engineered for an exceptional user experience, combining a sleek, modern interface with the power of the **Gemini 2.0 Flash** model for conversation and the **Hugging Face Stable Diffusion XL** model for image generation. The application enables **natural, human-like conversations**, leverages advanced **Multi-Media Analysis**, and supports the creation of new visuals on demand. It includes a persistent conversation history system, ensuring seamless interaction across sessions.
+The **AI ChatBot** is engineered for an exceptional user experience, combining a sleek, modern interface with the power of the **Gemini 2.0 Flash** model for conversation and the **Hugging Face Inference API** for visual content creation. The application enables **natural, human-like conversations**, leverages advanced **Multi-Media Analysis**, and supports the creation of new visuals on demand. It includes a persistent conversation history system, ensuring seamless interaction across sessions.
 
 ---
 
@@ -15,7 +15,7 @@ The **AI ChatBot** is engineered for an exceptional user experience, combining a
 ### 🎨 **Generative AI Capabilities**
 The chatbot utilizes a powerful, dual-model architecture to offer comprehensive AI functionality:
 * **Text & Data Processing (Gemini 2.0 Flash):** Provides the core intelligence for natural conversation and sophisticated data analysis.
-* **Image Generation (Hugging Face AI):** Generates high-quality, custom images directly within the chat using the **Stable Diffusion XL** model, powered by the **Hugging Face Inference API**.
+* **Image Generation (Hugging Face Inference API):** Generates high-quality, custom images directly within the chat using state-of-the-art models (e.g., **FLUX.1 Schnell**) for high-fidelity visual creation.
 
 ### 🧠 **Advanced AI Configuration**
 The core intelligence of the chatbot can be customized in the **Settings Panel**:
@@ -37,7 +37,7 @@ A persistent sidebar allows for organized and continuous interaction:
 The user interface is built for responsiveness and aesthetic appeal:
 * **Dynamic Theming:** Supports **Dark, Light, and Auto** themes, toggleable via the header button or settings panel.
 * **Code Highlighting:** Automatically formats and highlights code blocks in the AI's response for readability (via `highlight.js`).
-* **Message Actions:** Includes utility features like **Copy to Clipboard** and **Reate Response** buttons on bot messages.
+* **Message Actions:** Includes utility features like **Copy to Clipboard** and **Re-generate Response** buttons on bot messages.
 * **Fullscreen Mode:** Allows for easily toggling the application to full-screen view.
 
 ---
@@ -61,15 +61,10 @@ Highlights the capability to upload and analyze various file types (image, PDF, 
 
 <img width="1512" height="757" alt="Screenshot 2025-10-10 at 5 35 37 PM" src="https://github.com/user-attachments/assets/96500091-78d6-4fd5-a44f-4e8bf36f6507" />
 
-### 🌅 **Text-Image Generation**
-Displays the capability of making us of AI models to generate images from text prompts. 
-
-
+### 🌅 **Text-to-Image Generation (Video Demo)**
+Displays the capability of making use of AI models to generate images from text prompts.
 
 https://github.com/user-attachments/assets/dfb9d9ec-e941-45a1-a2ed-40bbbc733eb4
-
-+
-
 
 https://github.com/user-attachments/assets/91af5f61-6abf-4083-b805-9530a8f5864c
 
@@ -88,7 +83,7 @@ Follow these steps to get the **AI ChatBot** running on your local machine.
     ```
 
 ### 🔑 **2. Configure API Keys**
-This application requires two API keys: one for Google's Gemini model and one for Hugging Face's Stable Diffusion XL model.
+This application requires two API keys: one for Google's Gemini model and one for Hugging Face's image generation models.
 
 1.  Obtain a **Gemini API Key** from Google AI Studio.
 2.  Obtain a **Hugging Face API Key** from the Hugging Face website.
